@@ -89,6 +89,9 @@ with st.form("rent_form"):
         st.caption(f"**Rent in words:** {rent_words}")
         st.caption(f"**Security in words:** {security_words}")
 
+    # New Toggle for the Security Clause
+    include_non_refundable = st.radio("Include 6-Month Non-Refundable Security Clause?", ["Yes", "No"])
+
     st.subheader("Export Options")
     export_format = st.radio("Choose download format:", ["Word Document (.docx)", "PDF (.pdf)"])
 
@@ -103,6 +106,12 @@ if submitted:
         
         # Logic for conditional annexure text
         annexure_text = ", with Annexure enclosed therein" if include_annexure == "Yes" else ""
+        
+        # Logic for conditional non-refundable security text
+        if include_non_refundable == "Yes":
+            non_refundable_text = "The Security amount so given will be NON-REFUNDABLE IF VACATED WITHIN SIX MONTHS from commencement of the tenancy period."
+        else:
+            non_refundable_text = ""
             
         # Format dates as DD-MM-YYYY
         formatted_start = start_date.strftime("%d-%m-%Y")
@@ -119,13 +128,14 @@ if submitted:
             "START_DATE": formatted_start,
             "END_DATE": formatted_end,
             "CHARGE_TYPE": charge_type,
-            "RENT_NUM": rent_formatted, # Passes the comma-formatted number
-            "RENT_WORDS": rent_words,   # Passes the generated words
+            "RENT_NUM": rent_formatted, 
+            "RENT_WORDS": rent_words,   
             "SECURITY_NUM": security_formatted,
             "SECURITY_WORDS": security_words,
             "PERCENT_INC": percent_inc,
             "LANDLORD_NAME": landlord_name,
-            "TENANT_NAME": tenant_name
+            "TENANT_NAME": tenant_name,
+            "NON_REFUNDABLE_SECURITY": non_refundable_text # New tag added here
         }
         
         # Render the template
@@ -147,11 +157,9 @@ if submitted:
         # Handle PDF Download (Requires LibreOffice on the server)
         elif export_format == "PDF (.pdf)":
             with st.spinner("Converting to PDF... this might take a few seconds."):
-                # Save temp docx
                 temp_docx = "temp_agreement.docx"
                 doc.save(temp_docx)
                 
-                # Convert to PDF via command line
                 subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', temp_docx])
                 
                 temp_pdf = "temp_agreement.pdf"
@@ -166,12 +174,10 @@ if submitted:
                         file_name=f"Rent_Agreement_{tenant_name.replace(' ', '_')}.pdf",
                         mime="application/pdf"
                     )
-                    # Clean up temp files
                     os.remove(temp_pdf)
                 else:
                     st.error("PDF conversion failed. Please try downloading as a Word document instead.")
                 
-                # Clean up temp docx
                 if os.path.exists(temp_docx):
                     os.remove(temp_docx)
                     

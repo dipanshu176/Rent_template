@@ -57,7 +57,7 @@ with st.form("rent_form"):
     with col_prop2:
         room_desc = st.text_input("Room Description", value="3 BHK Semi-Furnished, with 3 Washroom Attached along with Dining Hall")
     
-    include_annexure = st.radio("Include Annexure clause?", ["Yes", "No"])
+    include_annexure = st.radio("Include Annexure page?", ["Yes", "No"])
     
     st.subheader("Tenancy Dates")
     col_date1, col_date2 = st.columns(2)
@@ -65,8 +65,10 @@ with st.form("rent_form"):
         start_date = st.date_input("Tenancy Start Date")
     with col_date2:
         duration_months = st.number_input("Duration (Months)", value=11, min_value=1)
-        # Automatically calculate end date (Start Date + Months)
-        end_date = start_date + relativedelta(months=duration_months)
+        
+        # --- DATE MATH FIX: Add months, then subtract 1 day ---
+        end_date = start_date + relativedelta(months=duration_months) - timedelta(days=1)
+        
         st.info(f"Auto-Calculated End Date: **{end_date.strftime('%d-%m-%Y')}**")
         
     st.subheader("Financial Details")
@@ -85,11 +87,9 @@ with st.form("rent_form"):
         security_formatted = format_indian_number(security_input)
         security_words = get_indian_words(security_input)
         
-        # Display the calculated words to the user as confirmation
         st.caption(f"**Rent in words:** {rent_words}")
         st.caption(f"**Security in words:** {security_words}")
 
-    # New Toggle for the Security Clause
     include_non_refundable = st.radio("Include 6-Month Non-Refundable Security Clause?", ["Yes", "No"])
 
     st.subheader("Export Options")
@@ -104,14 +104,9 @@ if submitted:
         # Load the Word template
         doc = DocxTemplate("Rent_Template.docx")
         
-        # Logic for conditional annexure text
+        # Logic for inline conditional text
         annexure_text = ", with Annexure enclosed therein" if include_annexure == "Yes" else ""
-        
-        # Logic for conditional non-refundable security text
-        if include_non_refundable == "Yes":
-            non_refundable_text = "The Security amount so given will be NON-REFUNDABLE IF VACATED WITHIN SIX MONTHS from commencement of the tenancy period."
-        else:
-            non_refundable_text = ""
+        non_refundable_text = "The Security amount so given will be NON-REFUNDABLE IF VACATED WITHIN SIX MONTHS from commencement of the tenancy period." if include_non_refundable == "Yes" else ""
             
         # Format dates as DD-MM-YYYY
         formatted_start = start_date.strftime("%d-%m-%Y")
@@ -125,6 +120,7 @@ if submitted:
             "FLOOR": floor,
             "ROOM_DESC": room_desc,
             "ANNEXURE_TEXT": annexure_text,
+            "SHOW_ANNEXURE": True if include_annexure == "Yes" else False, # New boolean for the Word template block
             "START_DATE": formatted_start,
             "END_DATE": formatted_end,
             "CHARGE_TYPE": charge_type,
@@ -135,7 +131,7 @@ if submitted:
             "PERCENT_INC": percent_inc,
             "LANDLORD_NAME": landlord_name,
             "TENANT_NAME": tenant_name,
-            "NON_REFUNDABLE_SECURITY": non_refundable_text # New tag added here
+            "NON_REFUNDABLE_SECURITY": non_refundable_text
         }
         
         # Render the template
@@ -154,7 +150,7 @@ if submitted:
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
             
-        # Handle PDF Download (Requires LibreOffice on the server)
+        # Handle PDF Download
         elif export_format == "PDF (.pdf)":
             with st.spinner("Converting to PDF... this might take a few seconds."):
                 temp_docx = "temp_agreement.docx"
